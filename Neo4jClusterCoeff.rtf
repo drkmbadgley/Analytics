@@ -1,0 +1,136 @@
+{\rtf1\ansi\ansicpg1252\cocoartf1561\cocoasubrtf200
+{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+{\*\expandedcolortbl;;}
+\margl1440\margr1440\vieww10800\viewh8400\viewkind0
+\deftab720
+\pard\pardeftab720\partightenfactor0
+
+\f0\fs20 \cf0 The length of the longest chain was found from the following query:\
+\
+	MATCH p=(ci:ChatItem)-[r:ResponseTo*]->(ci2:ChatItem)\
+	return length (p) order by length (p) DESCENDING limit 5\
+\
+The result is 9 (length of the discussion or chat chain)\
+\
+Report the results including the length of the conversation (path length) and how many unique users were part of\
+the conversation chain. Describe your steps. Write the query that produces the correct answer.\
+I have the query:\
+\
+	match p=(ci:ChatItem)-[:ResponseTo*]->(ci2:ChatItem)\
+	where length(p)=9\
+	with nodes(p) as np\
+	match (u:User)-[:CreateChat*]->(ci:ChatItem)\
+	where ci in np\
+	return distinct u.id order by u.id desc\
+\
+To create the chattiest users, I created the following query:\
+\
+	MATCH users=(u)-[:CreateChat]->()\
+	RETURN u.id, count(u) ORDER BY count(u) desc limit 5\
+\
+Finally, present your answer, i.e. whether or not any of the chattiest users are part of any of the chattiest teams.\
+The query is:\
+\
+	Match (u:user)-[:CreateChat]->(ci)-[:PartOf]-(TeamChatSession)-[:OwnedBy]->(:Team)\
+	WHERE u.id in [394, 2067, 209, 1087]\
+	and t.id in [82, 185, 112]\
+	RETURN DISTINCT u.id AS User, t.id as Team\
+\
+Repeating the query to find out if the chattiest users are part of the chattiest teams, except increasing the number\
+of users/teams to 10, gives:\
+\
+	Match (u:user)-[:CreateChat]->(ci)-[:PartOf]-(TeamChatSession)-[:OwnedBy]->(t:Team)\
+	WHERE u.id in [394, 2067, 209, 1087, 554, 1627, 999, 516, 461, 668]\
+	and t.id in [82, 185, 112, 18, 194, 129, 52, 136, 146, 81]\
+	RETURN DISTINCT u.id AS User, t.id as Team\
+\
+Now we find a match where a chatty user is on a chatty team!\
+We have to get all the way down to down to user 999 with 105 chats that is part of team 52 with 788 threads.\
+Ironically, this is the 7
+\fs13 th 
+\fs20  chattiest user on the 7
+\fs13 th 
+\fs20  chattiest team!\
+\
+Describe your steps for performing this analysis. Be as clear, concise, and as brief as possible. Finally, report the\
+top 3 most active users in the table below.\
+My queries are:\
+Number of times a user mentions another user in a chat (and establishing the \'93InteractsWith\'94):\
+\
+	Match (u1:User)-[:CreateChat]->(i:ChatItem)-[:Mentioned]->(u2:User)\
+	Create (u1)-[:InteractsWith]->(u2)\
+\
+The number of times that a user creates a chat responding to another chat:\
+\
+	Match (u1:User)-[:CreateChat]->(i1:ChatItem)-[:ResponseTo]->(i2:ChatItem)\
+	With u1, i2\
+	Match (u2:User)-[:CreateChat]->(i2)\
+	Create (u1)-[:InteractsWith]->(u2)\
+\
+(the next line deletes the self-looping behavior).\
+\
+	Match (u1)-[r:InteractsWith]->(u1) delete r\
+\
+For a specific userID (id.209), I get a table:\
+\
+	match (u1\{id:209\})-[r:InteractsWith]-(u2)\
+	with count (distinct u2) as NeighborQuantity, collect(distinct u2.id) as Neighbors\
+	match (n)-[r2:InteractsWith]-(m)\
+	where (n.id in Neighbors) and (m.id in Neighbors)\
+	with NeighborQuantity, n, m, count(distinct r2) AS degree\
+	Return NeighborQuantity, n.id, m.id, degree,\
+	Case when (n)-->(m) then 1\
+	else 0\
+	end as value\
+	order by n.id, m.id\
+\
+This gave me 40 records.\
+Since NeighborQuantity (k) is 7, we have 40/[k*(k-1)] = 40/[7*(7-1)] = 0.95238095.\
+\
+Repeating this for the other nine 394, 2067, 1087, 554, 1627, 999, 516, 461, 668, gives:\
+ID Relationships (R) NeighborQuantity (k) Coefficient\
+\
+u1\{id:209\} 40 7 0.95238095\
+u1\{id:394\} 12 4 1.0\
+u1\{id:2067\} 44 8 0.78571429\
+u1\{id:1087\} 24 6 0.8\
+u1\{id:554\} 38 7 0.90476190\
+u1\{id:1627\} 44 8 0.78571429\
+u1\{id:999\} 78 10 0.86666667\
+u1\{id:516\} 40 7 0.95238095\
+u1\{id:461\} 6 3 1.0\
+u1\{id:668\} 14 5 0.7\
+\
+u1\{id:394\} \'96 12 relationships:\
+Since NeighborQuantity (k) is 4, we have 12/[k*(k-1)] = 12/[4*(4-1)] = 1.0.\
+u1\{id:2067\} \'96 44 relationships:\
+Since NeighborQuantity (k) is 8, we have 44/[k*(k-1)] = 44/[8*(8-1)] = 0.78571429.\
+u1\{id:1087\} \'96 24 relationships:\
+Since NeighborQuantity (k) is 6, we have 24/[k*(k-1)] = 24/[6*(6-1)] = 0.8.\
+u1\{id:554\} \'96 38 relationships:\
+Since NeighborQuantity (k) is 7, we have 38/[k*(k-1)] = 38/[7*(7-1)] = 0.90476190.\
+u1\{id:1627\} \'96 44 relationships:\
+Since NeighborQuantity (k) is 8, we have 44/[k*(k-1)] = 44/[8*(8-1)] = 0.78571429.\
+u1\{id:999\} \'96 78 relationships:\
+Since NeighborQuantity (k) is 10, we have 78/[k*(k-1)] = 78/[10*(10-1)] = 0.86666667.\
+u1\{id:516\} \'96 40 relationships:\
+Since NeighborQuantity (k) is 7, we have 40/[k*(k-1)] = 40/[7*(7-1)] = 0. 95238095.\
+u1\{id:461\} \'96 6 relationships:\
+Since NeighborQuantity (k) is 3, we have 6/[k*(k-1)] = 6/[3*(3-1)] = 1.0.\
+u1\{id:668\} \'96 14 relationships:\
+Since NeighborQuantity (k) is 5, we have 14/[k*(k-1)] = 14/[5*(5-1)] = 0.7.\
+\
+We can see that some of the least chatty users (461) have high coefficients. Ignoring these small participants (668,\
+461, and 394, the following tables shows their results by cluster coefficients:\
+\pard\pardeftab720\partightenfactor0
+
+\fs22 \cf0 Most Active Users (based on Cluster Coefficients)\
+\pard\pardeftab720\partightenfactor0
+
+\fs20 \cf0 User ID Coefficient\
+ 209 AND 516 0.95238095\
+554 0.90476190\
+999 0.86666667\
+1087 0.8\
+2067 AND 1627 0.78571429}
